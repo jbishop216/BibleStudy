@@ -1,4 +1,4 @@
-export type Translation = 'web' | 'kjv' | 'asv' | 'bbe'
+export type Translation = 'web' | 'kjv' | 'asv' | 'bbe' | 'webbe'
 
 export interface BibleVerse {
   book_id: string
@@ -17,10 +17,11 @@ export interface BibleResponse {
 }
 
 export const TRANSLATIONS: { id: Translation; name: string }[] = [
-  { id: 'web', name: 'World English Bible' },
-  { id: 'kjv', name: 'King James Version' },
-  { id: 'asv', name: 'American Standard Version' },
-  { id: 'bbe', name: "Bible in Basic English" },
+  { id: 'web', name: 'World English Bible (WEB)' },
+  { id: 'webbe', name: 'WEB British Edition' },
+  { id: 'kjv', name: 'King James Version (KJV)' },
+  { id: 'asv', name: 'American Standard Version (ASV)' },
+  { id: 'bbe', name: 'Bible in Basic English (BBE)' },
 ]
 
 /** Normalize a ref string for bible-api.com */
@@ -58,6 +59,24 @@ export function splitIntoWords(text: string): string[] {
 export function firstLetter(word: string): string {
   const clean = word.replace(/^[^a-zA-Z0-9]/, '')
   return clean.charAt(0).toUpperCase()
+}
+
+/** Fetch an entire chapter from bible-api.com.
+ *  Pass a ref like "Luke 1" or "1 Corinthians 14".
+ *  For single-chapter books (Philemon, 2 John, 3 John, Jude) just pass the book name.
+ */
+export async function fetchChapter(
+  chapterRef: string,
+  translation: Translation = 'web'
+): Promise<BibleResponse> {
+  // bible-api.com treats "Book Chapter" as a whole-chapter request
+  const url = `https://bible-api.com/${normalizeRef(chapterRef)}?translation=${translation}`
+  const res = await fetch(url, { cache: 'force-cache' })
+  if (!res.ok) {
+    throw new Error(`Could not load "${chapterRef}" — ${res.status}`)
+  }
+  const data: BibleResponse = await res.json()
+  return data
 }
 
 /** Determine which word indices to blank in stage 2.

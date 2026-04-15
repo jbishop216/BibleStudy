@@ -17,8 +17,12 @@ export async function generateMetadata({ params }: Props) {
   const { id } = await params
   const week = SCHEDULE.find(w => w.id === parseInt(id, 10))
   if (!week) return { title: 'Not Found' }
+  // Abbreviate long reading strings for the title
+  const shortReading = week.chapters.length > 3
+    ? `${week.chapters[0]} – ${week.chapters[week.chapters.length - 1]}`
+    : week.reading
   return {
-    title: `Week ${week.id} — ${week.reading} | Scripture Study`,
+    title: `Week ${week.id} — ${shortReading} | Scripture Study`,
   }
 }
 
@@ -33,8 +37,10 @@ export default async function WeekPage({ params, searchParams }: Props) {
   const prevWeek = SCHEDULE.find(w => w.id === weekId - 1)
   const nextWeek = SCHEDULE.find(w => w.id === weekId + 1)
 
-  // Parse reading chapters for display
-  const chapters = parseChapters(week.reading)
+  // Display a short title when there are many chapters
+  const shortReading = week.chapters.length > 3
+    ? `${week.chapters[0]} – ${week.chapters[week.chapters.length - 1]}`
+    : week.reading
 
   return (
     <div className='min-h-[100dvh] flex flex-col bg-[#f9f7f4]'>
@@ -63,19 +69,13 @@ export default async function WeekPage({ params, searchParams }: Props) {
           {/* Prev / Next */}
           <div className='flex items-center gap-2 text-xs text-zinc-400'>
             {prevWeek && (
-              <Link
-                href={`/week/${prevWeek.id}`}
-                className='hover:text-zinc-900 transition-colors'
-              >
+              <Link href={`/week/${prevWeek.id}`} className='hover:text-zinc-900 transition-colors'>
                 ← Wk {prevWeek.id}
               </Link>
             )}
             {prevWeek && nextWeek && <span>·</span>}
             {nextWeek && (
-              <Link
-                href={`/week/${nextWeek.id}`}
-                className='hover:text-zinc-900 transition-colors'
-              >
+              <Link href={`/week/${nextWeek.id}`} className='hover:text-zinc-900 transition-colors'>
                 Wk {nextWeek.id} →
               </Link>
             )}
@@ -86,10 +86,10 @@ export default async function WeekPage({ params, searchParams }: Props) {
       {/* ── Week Hero ── */}
       <div className='max-w-4xl mx-auto w-full px-4 sm:px-6 pt-8 pb-6'>
         <p className='text-xs font-medium text-amber-700 uppercase tracking-widest mb-1'>
-          {week.label}
+          Week {week.id} · {week.label}
         </p>
         <h1 className='text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900 mb-0.5'>
-          {week.reading}
+          {shortReading}
         </h1>
         <p className='text-zinc-500 text-sm'>
           Memory verse:{' '}
@@ -101,35 +101,13 @@ export default async function WeekPage({ params, searchParams }: Props) {
       <div className='flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 pb-12'>
         <WeekTabs
           weekId={week.id}
-          reading={week.reading}
+          reading={shortReading}
           memoryRef={week.memoryRef}
           memoryDisplay={week.memoryDisplay}
-          chapters={chapters}
+          chapters={week.chapters}
           defaultTab={tab ?? 'reading'}
         />
       </div>
     </div>
   )
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Parse "Luke 1–5" into individual chapter references like ["Luke 1","Luke 2",...,"Luke 5"] */
-function parseChapters(reading: string): string[] {
-  // Handle "Titus + Philemon" style
-  if (reading.includes('+')) {
-    return reading.split('+').map(s => s.trim())
-  }
-
-  const match = reading.match(/^(.*?)\s+(\d+)[–-](\d+)$/)
-  if (!match) return [reading]
-
-  const [, book, startStr, endStr] = match
-  const start = parseInt(startStr, 10)
-  const end = parseInt(endStr, 10)
-  const result: string[] = []
-  for (let c = start; c <= end; c++) {
-    result.push(`${book} ${c}`)
-  }
-  return result
 }

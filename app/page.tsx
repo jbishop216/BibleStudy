@@ -65,7 +65,9 @@ export default function HomePage() {
                 />
               </div>
               <p className='font-semibold text-zinc-900 text-sm mb-0.5'>This Week&apos;s Reading</p>
-              <p className='text-xs text-zinc-500'>{current.reading}</p>
+              <p className='text-xs text-zinc-500 truncate'>
+                {current.chapters[0]} – {current.chapters[current.chapters.length - 1]}
+              </p>
             </Link>
 
             {/* HEAR */}
@@ -133,7 +135,7 @@ export default function HomePage() {
           weeks={SCHEDULE.map(w => ({
             id: w.id,
             label: w.label,
-            reading: w.reading,
+            reading: `${w.chapters[0]} – ${w.chapters[w.chapters.length - 1]}`,
             memoryDisplay: w.memoryDisplay,
             memoryRef: w.memoryRef,
           }))}
