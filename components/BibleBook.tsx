@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void
 }
 
-// ─── Roman numerals ───────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toRoman(n: number): string {
   const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
@@ -26,21 +26,22 @@ function toRoman(n: number): string {
   return result
 }
 
-// ─── Parchment page styles (inline, so they work without Tailwind JIT) ───────
-
-const PAGE_BG = {
-  right: `
-    radial-gradient(ellipse at 95% 10%, rgba(180,130,50,0.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 10% 90%, rgba(160,110,40,0.12) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 50%, rgba(220,190,130,0.08) 0%, transparent 70%),
-    linear-gradient(160deg, #f5e6c8 0%, #edddb0 40%, #f0e3c0 70%, #e8d4a0 100%)
-  `,
-  left: `
-    radial-gradient(ellipse at 5% 10%, rgba(180,130,50,0.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 90% 90%, rgba(160,110,40,0.12) 0%, transparent 45%),
-    linear-gradient(200deg, #e8d4a0 0%, #f0e3c0 40%, #edddb0 70%, #f5e6c8 100%)
-  `,
+function delay(ms: number): Promise<void> {
+  return new Promise(r => setTimeout(r, ms))
 }
+
+// ─── Page background gradients ────────────────────────────────────────────────
+
+const LEFT_BG = `
+  radial-gradient(ellipse at 5% 15%, rgba(180,130,50,0.2) 0%, transparent 50%),
+  radial-gradient(ellipse at 90% 85%, rgba(160,110,40,0.14) 0%, transparent 45%),
+  linear-gradient(200deg, #e6d09a 0%, #efdfb4 35%, #e9d9ac 65%, #f0e3c2 100%)
+`
+const RIGHT_BG = `
+  radial-gradient(ellipse at 95% 15%, rgba(180,130,50,0.2) 0%, transparent 50%),
+  radial-gradient(ellipse at 10% 85%, rgba(160,110,40,0.14) 0%, transparent 45%),
+  linear-gradient(160deg, #f0e3c2 0%, #e9d9ac 35%, #efdfb4 65%, #e6d09a 100%)
+`
 
 // ─── BibleBook ────────────────────────────────────────────────────────────────
 
@@ -71,48 +72,45 @@ export default function BibleBook({ chapters, initialIdx, translation, onClose }
     loadChapter(currentIdx, translation)
   }, [currentIdx, translation, loadChapter])
 
-  // Keyboard navigation
+  // Keyboard
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'ArrowRight') turn(1)
-      if (e.key === 'ArrowLeft') turn(-1)
-      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft') turn(-1)
+      else if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // Touch/swipe
+  // Swipe
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
   }
   function onTouchEnd(e: React.TouchEvent) {
     if (touchStartX.current === null) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
-    if (Math.abs(dx) > 60) turn(dx < 0 ? 1 : -1)
+    if (Math.abs(dx) > 55) turn(dx < 0 ? 1 : -1)
     touchStartX.current = null
   }
 
   async function turn(dir: 1 | -1) {
     const newIdx = currentIdx + dir
     if (newIdx < 0 || newIdx >= chapters.length || turning) return
-
     setTurning(true)
-    // Phase 1: flip current page out
+    // Phase 1: flip out
     setAnimY(dir * -90)
-    setAnimOpacity(0.3)
-    await delay(280)
-
-    // Swap content
+    setAnimOpacity(0.25)
+    await delay(260)
+    // Swap
     setCurrentIdx(newIdx)
     setAnimY(dir * 90)
-    setAnimOpacity(0.3)
+    setAnimOpacity(0.25)
     await delay(20)
-
-    // Phase 2: flip new page in
+    // Phase 2: flip in
     setAnimY(0)
     setAnimOpacity(1)
-    await delay(280)
+    await delay(260)
     setTurning(false)
   }
 
@@ -120,81 +118,96 @@ export default function BibleBook({ chapters, initialIdx, translation, onClose }
   const canNext = currentIdx < chapters.length - 1
 
   return (
+    // Full-screen opaque overlay — z-[9999] to beat sticky headers
     <div
-      className='fixed inset-0 z-50 flex flex-col items-center justify-center'
-      style={{ background: 'rgba(15, 10, 5, 0.97)' }}
+      className='fixed inset-0 flex flex-col items-center justify-center'
+      style={{ zIndex: 9999, background: 'rgba(10, 6, 2, 0.98)', overflow: 'hidden' }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Ambient glow */}
+      {/* Subtle ambient glow */}
       <div
         className='pointer-events-none absolute inset-0'
-        style={{
-          background: 'radial-gradient(ellipse at 50% 50%, rgba(180,130,50,0.06) 0%, transparent 70%)',
-        }}
+        style={{ background: 'radial-gradient(ellipse at 50% 48%, rgba(180,130,50,0.07) 0%, transparent 65%)' }}
       />
 
       {/* Close */}
       <button
         onClick={onClose}
-        className='absolute top-5 right-5 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-stone-800/80 text-stone-300 hover:text-white hover:bg-stone-700 transition-all'
+        className='absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full transition-all'
+        style={{
+          zIndex: 10000,
+          background: 'rgba(80,50,20,0.7)',
+          border: '1px solid rgba(180,130,50,0.3)',
+          color: '#d4b483',
+        }}
       >
-        <X size={18} />
+        <X size={16} />
       </button>
 
-      {/* Translation badge */}
-      <div className='absolute top-5 left-5 z-20 text-xs text-stone-500 uppercase tracking-widest'>
+      {/* Translation label */}
+      <div
+        className='absolute top-5 left-5 text-[10px] uppercase tracking-widest'
+        style={{ color: 'rgba(180,130,50,0.5)', zIndex: 10000 }}
+      >
         {translation}
       </div>
 
-      {/* The Open Book */}
-      <div
-        className='w-full max-w-6xl px-2 sm:px-6 flex flex-col items-center gap-5'
-        style={{ perspective: '2000px' }}
+      {/* ── Main book layout ── */}
+      <div className='w-full px-2 sm:px-4 md:px-6 flex flex-col items-center gap-3'
+        style={{ maxWidth: '1100px', perspective: '2000px' }}
       >
-        <div className='relative w-full flex items-stretch justify-center'>
+        {/* The Book — explicit height so h-full works inside pages */}
+        <div
+          className='relative w-full flex items-stretch'
+          style={{
+            height: 'min(78dvh, 660px)',
+            // Drop shadow beneath the book
+            filter: 'drop-shadow(0 24px 40px rgba(0,0,0,0.8))',
+          }}
+        >
 
           {/* ── Left Page (TOC) — desktop only ── */}
           <div
-            className='hidden md:flex flex-col w-[46%] rounded-l-sm overflow-hidden'
+            className='hidden md:flex flex-col w-[45%] shrink-0 rounded-l overflow-hidden'
             style={{
-              background: PAGE_BG.left,
-              boxShadow: 'inset -12px 0 25px rgba(0,0,0,0.08), inset 4px 0 8px rgba(255,240,200,0.3)',
-              minHeight: '580px',
+              background: LEFT_BG,
+              boxShadow: 'inset -14px 0 28px rgba(0,0,0,0.09), inset 5px 0 10px rgba(255,245,210,0.25)',
             }}
           >
             <TOCPage
               chapters={chapters}
               currentIdx={currentIdx}
-              onSelect={idx => { if (!turning) { setCurrentIdx(idx) } }}
+              onSelect={i => { if (!turning) setCurrentIdx(i) }}
             />
           </div>
 
           {/* ── Spine ── */}
           <div
-            className='hidden md:block w-[28px] shrink-0 relative z-10'
+            className='hidden md:block shrink-0'
             style={{
-              background: 'linear-gradient(90deg, #1a0e07 0%, #3d200e 20%, #5c3018 45%, #3d200e 75%, #1a0e07 100%)',
-              boxShadow: '-6px 0 20px rgba(0,0,0,0.6), 6px 0 20px rgba(0,0,0,0.6), inset 0 0 8px rgba(255,200,100,0.05)',
+              width: '26px',
+              background: 'linear-gradient(90deg,#110802 0%,#2e1408 18%,#4d2210 40%,#5c2e14 50%,#4d2210 62%,#2e1408 82%,#110802 100%)',
+              boxShadow: '-8px 0 18px rgba(0,0,0,0.55), 8px 0 18px rgba(0,0,0,0.55)',
+              position: 'relative',
+              zIndex: 2,
             }}
           >
-            {/* Spine decoration */}
-            <div className='absolute inset-x-0 top-6 bottom-6 flex flex-col items-center justify-between opacity-40'>
-              <div className='w-px flex-1' style={{ background: 'linear-gradient(to bottom, transparent, #c8a060, transparent)' }} />
-              <div className='w-4 h-px bg-amber-600/60' />
-              <div className='w-px flex-1' style={{ background: 'linear-gradient(to bottom, transparent, #c8a060, transparent)' }} />
-            </div>
+            {/* Spine decorative line */}
+            <div
+              className='absolute top-6 bottom-6 left-1/2 -translate-x-1/2 w-px'
+              style={{ background: 'linear-gradient(to bottom, transparent, rgba(200,160,60,0.35), transparent)' }}
+            />
           </div>
 
           {/* ── Right Page (Reading) ── */}
           <motion.div
             animate={{ rotateY: animY, opacity: animOpacity }}
-            transition={{ duration: 0.28, ease: animOpacity < 1 ? 'easeIn' : 'easeOut' }}
-            className='w-full md:w-[46%] flex flex-col overflow-hidden rounded-r-sm md:rounded-l-none rounded-l-sm'
+            transition={{ duration: 0.26, ease: animOpacity < 0.5 ? 'easeIn' : 'easeOut' }}
+            className='flex flex-col flex-1 rounded-r overflow-hidden'
             style={{
-              background: PAGE_BG.right,
-              boxShadow: 'inset 12px 0 25px rgba(0,0,0,0.08), inset -4px 0 8px rgba(255,240,200,0.3), 8px 0 30px rgba(0,0,0,0.5)',
-              minHeight: '580px',
+              background: RIGHT_BG,
+              boxShadow: 'inset 14px 0 28px rgba(0,0,0,0.09), inset -5px 0 10px rgba(255,245,210,0.25), 6px 0 24px rgba(0,0,0,0.5)',
               transformOrigin: 'left center',
               transformStyle: 'preserve-3d',
             }}
@@ -203,7 +216,7 @@ export default function BibleBook({ chapters, initialIdx, translation, onClose }
               <ParchmentLoader />
             ) : error ? (
               <div className='flex-1 flex items-center justify-center p-8'>
-                <p style={{ fontFamily: 'IM Fell English, serif' }} className='text-amber-900/70 text-center text-sm italic'>
+                <p style={{ fontFamily: "'IM Fell English', serif", color: '#7a5c2e', textAlign: 'center', fontStyle: 'italic' }}>
                   {error}
                 </p>
               </div>
@@ -215,62 +228,59 @@ export default function BibleBook({ chapters, initialIdx, translation, onClose }
               />
             ) : null}
           </motion.div>
-
-          {/* Book base shadow */}
-          <div
-            className='absolute -bottom-3 left-1/4 right-1/4 h-5 rounded-full blur-lg'
-            style={{ background: 'rgba(0,0,0,0.7)' }}
-          />
         </div>
 
-        {/* Navigation buttons */}
-        <div className='flex items-center gap-6'>
-          <button
-            onClick={() => turn(-1)}
-            disabled={!canPrev || turning}
-            className='group flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-[0.97]'
-            style={{
-              background: canPrev ? 'rgba(92,48,24,0.9)' : 'rgba(40,30,20,0.5)',
-              color: canPrev ? '#f5e6c8' : 'rgba(245,230,200,0.3)',
-              border: '1px solid rgba(180,130,50,0.3)',
-              fontFamily: 'IM Fell English, serif',
-            }}
-          >
-            <CaretLeft size={14} />
-            Previous
-          </button>
-
-          <span
-            className='text-xs tracking-widest'
-            style={{ color: 'rgba(180,130,50,0.7)', fontFamily: 'IM Fell English, serif', fontStyle: 'italic' }}
-          >
-            {currentIdx + 1} · {chapters[currentIdx]}
+        {/* ── Navigation ── */}
+        <div className='flex items-center gap-4'>
+          <NavButton onClick={() => turn(-1)} disabled={!canPrev || turning} label='Previous' icon={<CaretLeft size={13} />} iconLeft />
+          <span style={{
+            fontFamily: "'IM Fell English', serif",
+            fontStyle: 'italic',
+            fontSize: '0.8rem',
+            color: 'rgba(200,160,60,0.6)',
+            minWidth: '160px',
+            textAlign: 'center',
+          }}>
+            {chapters[currentIdx]}
           </span>
-
-          <button
-            onClick={() => turn(1)}
-            disabled={!canNext || turning}
-            className='group flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-[0.97]'
-            style={{
-              background: canNext ? 'rgba(92,48,24,0.9)' : 'rgba(40,30,20,0.5)',
-              color: canNext ? '#f5e6c8' : 'rgba(245,230,200,0.3)',
-              border: '1px solid rgba(180,130,50,0.3)',
-              fontFamily: 'IM Fell English, serif',
-            }}
-          >
-            Next
-            <CaretRight size={14} />
-          </button>
+          <NavButton onClick={() => turn(1)} disabled={!canNext || turning} label='Next' icon={<CaretRight size={13} />} />
         </div>
 
-        <p
-          className='text-xs text-center'
-          style={{ color: 'rgba(180,130,50,0.4)', fontFamily: 'IM Fell English, serif', fontStyle: 'italic' }}
-        >
-          Use arrow keys or swipe to turn pages
+        <p style={{ fontFamily: "'IM Fell English', serif", fontStyle: 'italic', fontSize: '0.7rem', color: 'rgba(180,130,50,0.35)' }}>
+          Arrow keys or swipe to turn pages · Escape to close
         </p>
       </div>
     </div>
+  )
+}
+
+// ─── Nav button ───────────────────────────────────────────────────────────────
+
+function NavButton({ onClick, disabled, label, icon, iconLeft }: {
+  onClick: () => void
+  disabled: boolean
+  label: string
+  icon: React.ReactNode
+  iconLeft?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className='flex items-center gap-2 px-4 py-2 rounded transition-all active:scale-[0.97]'
+      style={{
+        fontFamily: "'IM Fell English', serif",
+        fontSize: '0.875rem',
+        background: disabled ? 'rgba(30,18,8,0.6)' : 'rgba(80,45,15,0.85)',
+        color: disabled ? 'rgba(200,160,60,0.25)' : 'rgba(240,220,170,0.9)',
+        border: `1px solid ${disabled ? 'rgba(120,80,30,0.2)' : 'rgba(180,130,50,0.4)'}`,
+        cursor: disabled ? 'default' : 'pointer',
+      }}
+    >
+      {iconLeft && icon}
+      {label}
+      {!iconLeft && icon}
+    </button>
   )
 }
 
@@ -281,64 +291,60 @@ function ChapterPage({ data, pageNum, totalPages }: {
   pageNum: number
   totalPages: number
 }) {
-  const lines = data.verses
-
   return (
-    <div className='flex flex-col h-full'>
-      {/* Top ornamental rule */}
+    // Use flex-col + flex-1 so this fills the parent's explicit height
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Top ornament */}
       <OrnamentalRule />
 
-      {/* Chapter header */}
-      <div className='text-center px-8 pt-2 pb-4'>
-        <p
-          className='text-[10px] tracking-[0.3em] uppercase mb-3'
-          style={{ color: '#7a5c2e', fontFamily: 'IM Fell English, serif' }}
-        >
+      {/* Chapter heading */}
+      <div style={{ textAlign: 'center', padding: '4px 28px 8px' }}>
+        <p style={{
+          fontFamily: "'IM Fell English', serif",
+          fontSize: '0.65rem',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase',
+          color: '#7a5c2e',
+          marginBottom: '6px',
+        }}>
           {data.verses[0]?.book_name}
         </p>
-        <h2
-          className='leading-tight'
-          style={{
-            fontFamily: 'UnifrakturMaguntia, cursive',
-            fontSize: 'clamp(1.4rem, 3vw, 2rem)',
-            color: '#3d1f0a',
-            textShadow: '0 1px 2px rgba(100,60,20,0.15)',
-          }}
-        >
+        <h2 style={{
+          fontFamily: "'UnifrakturMaguntia', cursive",
+          fontSize: 'clamp(1.25rem, 2.8vw, 1.8rem)',
+          color: '#3a1c08',
+          lineHeight: 1.2,
+          textShadow: '0 1px 2px rgba(80,40,10,0.15)',
+        }}>
           {data.reference}
         </h2>
       </div>
 
-      {/* Decorative divider */}
-      <VerseRuleDivider />
+      <RuleDivider />
 
-      {/* Verse text */}
-      <div className='flex-1 overflow-y-auto px-6 md:px-8 py-3'>
-        <p
-          className='leading-loose text-justify'
-          style={{
-            fontFamily: 'IM Fell English, serif',
-            fontSize: 'clamp(0.92rem, 1.6vw, 1.05rem)',
-            color: '#2c1a08',
-            hyphens: 'auto',
-          }}
-        >
-          {lines.map((v, i) => (
+      {/* Verse text — scrollable */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 28px 4px' }}>
+        <p style={{
+          fontFamily: "'IM Fell English', serif",
+          fontSize: 'clamp(0.88rem, 1.5vw, 1rem)',
+          color: '#241208',
+          lineHeight: 1.85,
+          textAlign: 'justify',
+          hyphens: 'auto',
+        }}>
+          {data.verses.map((v, i) => (
             <span key={v.verse}>
               {i === 0 ? (
                 <DropCap verse={v} />
               ) : (
                 <>
-                  <sup
-                    style={{
-                      fontFamily: 'IM Fell English, serif',
-                      fontSize: '0.6em',
-                      color: '#8b5e2a',
-                      marginRight: '1px',
-                      verticalAlign: 'super',
-                      fontStyle: 'normal',
-                    }}
-                  >
+                  <sup style={{
+                    fontFamily: "'IM Fell English', serif",
+                    fontSize: '0.58em',
+                    color: '#8b5e2a',
+                    marginRight: '1px',
+                    verticalAlign: 'super',
+                  }}>
                     {v.verse}
                   </sup>
                   {v.text.replace(/\n/g, ' ')}{' '}
@@ -349,26 +355,17 @@ function ChapterPage({ data, pageNum, totalPages }: {
         </p>
       </div>
 
-      {/* Bottom ornamental rule + page number */}
-      <div className='px-6 md:px-8 pb-4'>
-        <VerseRuleDivider />
-        <div className='flex items-center justify-between mt-2'>
-          <span
-            className='text-[10px]'
-            style={{ color: '#8b6a3a', fontFamily: 'IM Fell English, serif', fontStyle: 'italic' }}
-          >
+      {/* Footer */}
+      <div style={{ padding: '4px 28px 12px' }}>
+        <RuleDivider />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
+          <span style={{ fontFamily: "'IM Fell English', serif", fontSize: '0.62rem', fontStyle: 'italic', color: '#8b6a3a' }}>
             {data.verses[0]?.book_name}
           </span>
-          <span
-            className='text-[10px] tracking-widest'
-            style={{ color: '#8b6a3a', fontFamily: 'Cinzel Decorative, serif' }}
-          >
+          <span style={{ fontFamily: "'Cinzel Decorative', serif", fontSize: '0.6rem', color: '#8b6a3a', letterSpacing: '0.05em' }}>
             {toRoman(pageNum)}
           </span>
-          <span
-            className='text-[10px]'
-            style={{ color: '#8b6a3a', fontFamily: 'IM Fell English, serif', fontStyle: 'italic' }}
-          >
+          <span style={{ fontFamily: "'IM Fell English', serif", fontSize: '0.62rem', fontStyle: 'italic', color: '#8b6a3a' }}>
             of {toRoman(totalPages)}
           </span>
         </div>
@@ -377,35 +374,27 @@ function ChapterPage({ data, pageNum, totalPages }: {
   )
 }
 
-// ─── Drop cap for first verse ─────────────────────────────────────────────────
+// ─── Drop cap ─────────────────────────────────────────────────────────────────
 
 function DropCap({ verse }: { verse: BibleVerse }) {
   const text = verse.text.replace(/\n/g, ' ').trim()
   const first = text.charAt(0)
   const rest = text.slice(1)
-
   return (
     <>
-      <sup
-        style={{
-          fontFamily: 'IM Fell English, serif',
-          fontSize: '0.6em',
-          color: '#8b5e2a',
-          marginRight: '1px',
-          verticalAlign: 'super',
-          fontStyle: 'normal',
-        }}
-      >
+      <sup style={{ fontFamily: "'IM Fell English', serif", fontSize: '0.58em', color: '#8b5e2a', marginRight: '1px', verticalAlign: 'super' }}>
         {verse.verse}
       </sup>
       <span
-        className='float-left mr-1 mt-0.5 leading-none select-none'
         style={{
-          fontFamily: 'Cinzel Decorative, serif',
-          fontSize: 'clamp(3.5rem, 6vw, 4.5rem)',
-          color: '#7a3b0f',
-          lineHeight: '0.85',
-          textShadow: '1px 1px 2px rgba(100,50,10,0.2)',
+          float: 'left',
+          fontFamily: "'Cinzel Decorative', serif",
+          fontSize: 'clamp(3rem, 5.5vw, 4rem)',
+          color: '#6b2e08',
+          lineHeight: 0.82,
+          marginRight: '4px',
+          marginTop: '4px',
+          textShadow: '1px 1px 3px rgba(80,30,5,0.18)',
         }}
       >
         {first}
@@ -423,60 +412,65 @@ function TOCPage({ chapters, currentIdx, onSelect }: {
   onSelect: (i: number) => void
 }) {
   return (
-    <div className='flex flex-col h-full'>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <OrnamentalRule />
 
-      <div className='text-center px-6 pt-2 pb-4'>
-        <h3
-          className='leading-tight'
-          style={{
-            fontFamily: 'UnifrakturMaguntia, cursive',
-            fontSize: '1.6rem',
-            color: '#3d1f0a',
-          }}
-        >
+      <div style={{ textAlign: 'center', padding: '4px 24px 8px' }}>
+        <h3 style={{
+          fontFamily: "'UnifrakturMaguntia', cursive",
+          fontSize: 'clamp(1.1rem, 2.4vw, 1.6rem)',
+          color: '#3a1c08',
+          lineHeight: 1.2,
+        }}>
           Contents
         </h3>
       </div>
 
-      <VerseRuleDivider />
+      <RuleDivider />
 
-      <div className='flex-1 overflow-y-auto px-6 py-4'>
-        <ul className='space-y-1.5'>
+      {/* Scrollable chapter list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px' }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {chapters.map((ch, i) => {
             const isActive = i === currentIdx
             return (
               <li key={i}>
                 <button
                   onClick={() => onSelect(i)}
-                  className='w-full text-left flex items-baseline gap-3 group transition-all'
+                  style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: '10px',
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'none',
+                    border: 'none',
+                    borderBottom: '1px solid rgba(140,100,40,0.18)',
+                    padding: '7px 2px',
+                    cursor: 'pointer',
+                  }}
                 >
-                  <span
-                    className='text-[10px] shrink-0 tabular-nums'
-                    style={{
-                      fontFamily: 'Cinzel Decorative, serif',
-                      color: isActive ? '#7a3b0f' : '#c4a06a',
-                      minWidth: '1.8rem',
-                    }}
-                  >
+                  <span style={{
+                    fontFamily: "'Cinzel Decorative', serif",
+                    fontSize: '0.58rem',
+                    color: isActive ? '#6b2e08' : '#b8904a',
+                    minWidth: '1.6rem',
+                    letterSpacing: '0.04em',
+                  }}>
                     {toRoman(i + 1)}
                   </span>
-                  <span
-                    className='flex-1 py-1 border-b leading-tight transition-colors'
-                    style={{
-                      fontFamily: 'IM Fell English, serif',
-                      fontSize: '0.95rem',
-                      color: isActive ? '#3d1f0a' : '#6b4c28',
-                      borderColor: 'rgba(140,100,50,0.2)',
-                      fontWeight: isActive ? 'bold' : 'normal',
-                    }}
-                  >
+                  <span style={{
+                    fontFamily: "'IM Fell English', serif",
+                    fontSize: 'clamp(0.82rem, 1.4vw, 0.95rem)',
+                    color: isActive ? '#3a1c08' : '#6b4c28',
+                    fontWeight: isActive ? 'bold' : 'normal',
+                    fontStyle: isActive ? 'normal' : 'italic',
+                    flex: 1,
+                  }}>
                     {ch}
                   </span>
                   {isActive && (
-                    <span className='text-amber-700 text-xs shrink-0' style={{ fontFamily: 'IM Fell English' }}>
-                      ✦
-                    </span>
+                    <span style={{ color: '#8b4a14', fontSize: '0.75rem' }}>✦</span>
                   )}
                 </button>
               </li>
@@ -485,13 +479,17 @@ function TOCPage({ chapters, currentIdx, onSelect }: {
         </ul>
       </div>
 
-      <div className='px-6 pb-4'>
-        <VerseRuleDivider />
-        <p
-          className='text-center mt-2 text-[10px] italic'
-          style={{ color: '#8b6a3a', fontFamily: 'IM Fell English, serif' }}
-        >
-          Click any chapter to read
+      <div style={{ padding: '6px 20px 12px' }}>
+        <RuleDivider />
+        <p style={{
+          fontFamily: "'IM Fell English', serif",
+          fontStyle: 'italic',
+          fontSize: '0.65rem',
+          textAlign: 'center',
+          color: '#8b6a3a',
+          marginTop: '6px',
+        }}>
+          Select a chapter to read
         </p>
       </div>
     </div>
@@ -502,59 +500,36 @@ function TOCPage({ chapters, currentIdx, onSelect }: {
 
 function OrnamentalRule() {
   return (
-    <div className='px-4 pt-5 pb-1 flex items-center justify-center'>
-      <div className='w-full flex items-center gap-2'>
-        <div className='flex-1 h-px' style={{ background: 'linear-gradient(to right, transparent, #c8a050, transparent)' }} />
-        <OrnamentSVG />
-        <div className='flex-1 h-px' style={{ background: 'linear-gradient(to right, transparent, #c8a050, transparent)' }} />
-      </div>
+    <div style={{ padding: '14px 20px 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(180,130,50,0.6), transparent)' }} />
+      <svg width='28' height='14' viewBox='0 0 28 14'>
+        <path d='M14 1 L16 7 L14 13 L12 7 Z' fill='rgba(160,110,40,0.55)' />
+        <circle cx='3' cy='7' r='1.8' fill='rgba(160,110,40,0.38)' />
+        <circle cx='25' cy='7' r='1.8' fill='rgba(160,110,40,0.38)' />
+        <path d='M5 7 Q9 4 12 7 Q9 10 5 7Z' fill='rgba(160,110,40,0.28)' />
+        <path d='M23 7 Q19 4 16 7 Q19 10 23 7Z' fill='rgba(160,110,40,0.28)' />
+      </svg>
+      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(180,130,50,0.6), transparent)' }} />
     </div>
   )
 }
 
-function VerseRuleDivider() {
+function RuleDivider() {
   return (
-    <div className='px-6 my-1 flex items-center gap-2'>
-      <div className='flex-1 h-px' style={{ background: 'rgba(140,100,40,0.3)' }} />
-      <div className='w-1 h-1 rounded-full' style={{ background: 'rgba(140,100,40,0.5)' }} />
-      <div className='flex-1 h-px' style={{ background: 'rgba(140,100,40,0.3)' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 20px' }}>
+      <div style={{ flex: 1, height: '1px', background: 'rgba(140,100,40,0.25)' }} />
+      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(140,100,40,0.4)' }} />
+      <div style={{ flex: 1, height: '1px', background: 'rgba(140,100,40,0.25)' }} />
     </div>
-  )
-}
-
-function OrnamentSVG() {
-  return (
-    <svg width='32' height='16' viewBox='0 0 32 16' fill='none' xmlns='http://www.w3.org/2000/svg'>
-      <path
-        d='M16 2 L18 8 L16 14 L14 8 Z'
-        fill='rgba(160,110,40,0.6)'
-      />
-      <circle cx='4' cy='8' r='2' fill='rgba(160,110,40,0.4)' />
-      <circle cx='28' cy='8' r='2' fill='rgba(160,110,40,0.4)' />
-      <path d='M6 8 Q10 5 14 8 Q10 11 6 8Z' fill='rgba(160,110,40,0.3)' />
-      <path d='M26 8 Q22 5 18 8 Q22 11 26 8Z' fill='rgba(160,110,40,0.3)' />
-    </svg>
   )
 }
 
 function ParchmentLoader() {
   return (
-    <div className='flex-1 p-8 pt-16 space-y-4'>
-      <div className='h-7 w-1/2 mx-auto rounded shimmer opacity-40' />
-      <div className='h-px w-full' style={{ background: 'rgba(140,100,40,0.2)' }} />
-      {[90, 80, 95, 75, 88, 82, 70, 85, 78, 60].map((w, i) => (
-        <div
-          key={i}
-          className='h-4 rounded shimmer opacity-30'
-          style={{ width: `${w}%` }}
-        />
+    <div style={{ flex: 1, padding: '40px 28px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {[60, 90, 82, 95, 75, 88, 70, 85, 78, 92, 65, 80].map((w, i) => (
+        <div key={i} className='shimmer' style={{ height: '14px', borderRadius: '3px', width: `${w}%`, opacity: 0.35 }} />
       ))}
     </div>
   )
-}
-
-// ─── Utility ──────────────────────────────────────────────────────────────────
-
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
