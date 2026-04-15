@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import {
   CheckCircle, Circle, BookOpen, ArrowRight, Books,
-  CaretLeft, CaretRight, X, ArrowCounterClockwise,
+  CaretLeft, CaretRight, X, ArrowCounterClockwise, BookBookmark,
 } from '@phosphor-icons/react'
 import { fetchChapter, type BibleResponse, type Translation, TRANSLATIONS } from '@/lib/bible'
 import { updateWeekProgress, getWeekProgress, getTranslation, saveTranslation } from '@/lib/storage'
+
+// Lazy-load the heavy BibleBook overlay
+const BibleBook = lazy(() => import('./BibleBook'))
 
 interface Props {
   weekId: number
@@ -19,13 +22,17 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [readingDone, setReadingDone] = useState(false)
 
-  // Chapter reader state
+  // Inline chapter reader state
   const [activeChapterIdx, setActiveChapterIdx] = useState<number | null>(null)
   const [chapterData, setChapterData] = useState<BibleResponse | null>(null)
   const [chapterLoading, setChapterLoading] = useState(false)
   const [chapterError, setChapterError] = useState('')
   const [translation, setTranslation] = useState<Translation>('web')
   const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>('base')
+
+  // Bible Book overlay state
+  const [bookOpen, setBookOpen] = useState(false)
+  const [bookStartIdx, setBookStartIdx] = useState(0)
 
   // Load saved progress + translation preference
   useEffect(() => {
@@ -55,6 +62,11 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
   function openChapter(idx: number) {
     setActiveChapterIdx(idx)
     loadChapter(chapters[idx], translation)
+  }
+
+  function openBookAt(idx: number) {
+    setBookStartIdx(idx)
+    setBookOpen(true)
   }
 
   function closeChapter() {
@@ -89,7 +101,6 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
   }
   const navNext = () => {
     if (activeChapterIdx === null || activeChapterIdx >= chapters.length - 1) return
-    // Auto-mark current chapter as read when advancing
     markChapterRead(activeChapterIdx)
     openChapter(activeChapterIdx + 1)
   }
@@ -97,7 +108,21 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
   const progress = chapters.length > 0 ? checked.size / chapters.length : 0
   const fontSizeClass = { sm: 'text-sm', base: 'text-base', lg: 'text-lg' }[fontSize]
 
-  // ── Chapter Reader Panel ────────────────────────────────────────────────────
+  // ── Bible Book Overlay ──────────────────────────────────────────────────────
+  if (bookOpen) {
+    return (
+      <Suspense fallback={null}>
+        <BibleBook
+          chapters={chapters}
+          initialIdx={bookStartIdx}
+          translation={translation}
+          onClose={() => setBookOpen(false)}
+        />
+      </Suspense>
+    )
+  }
+
+  // ── Inline Chapter Reader ───────────────────────────────────────────────────
   if (activeChapterIdx !== null) {
     const chRef = chapters[activeChapterIdx]
     const isRead = checked.has(activeChapterIdx)
@@ -119,17 +144,26 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
           </div>
 
           <div className='flex items-center gap-2'>
+            {/* Bible book view */}
+            <button
+              onClick={() => openBookAt(activeChapterIdx)}
+              className='flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all'
+            >
+              <BookBookmark size={13} />
+              Bible View
+            </button>
+
             {/* Font size */}
-            <div className='flex items-center gap-1 bg-stone-100 rounded-lg p-1'>
-              {(['sm', 'base', 'lg'] as const).map(size => (
+            <div className='flex items-center gap-0.5 bg-stone-100 rounded-lg p-1'>
+              {(['sm', 'base', 'lg'] as const).map((size, si) => (
                 <button
                   key={size}
                   onClick={() => setFontSize(size)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all
-                    ${fontSize === size ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+                  className={`px-2 py-1 rounded-md transition-all font-medium
+                    ${fontSize === size ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-400 hover:text-zinc-700'}`}
+                  style={{ fontSize: si === 0 ? '10px' : si === 1 ? '12px' : '14px' }}
                 >
-                  {size === 'sm' ? 'A' : size === 'base' ? 'A' : 'A'}
-                  <span className='sr-only'>{size}</span>
+                  A
                 </button>
               ))}
             </div>
@@ -156,7 +190,6 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
           {chapters.map((ch, i) => {
             const isActive = i === activeChapterIdx
             const isDone = checked.has(i)
-            const shortLabel = ch.replace(/^(.*?\s)(\d+)$/, (_, _b, n) => n) // extract number
             return (
               <button
                 key={i}
@@ -169,7 +202,7 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
                       : 'bg-stone-100 text-zinc-500 hover:bg-stone-200'
                   }`}
               >
-                {isDone && !isActive ? '✓ ' : ''}{ch.split(' ').slice(-1)[0] !== ch ? ch : shortLabel}
+                {isDone && !isActive ? '✓ ' : ''}{ch.split(' ').slice(-1)[0]}
               </button>
             )
           })}
@@ -184,7 +217,6 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
               ))}
             </div>
           )}
-
           {chapterError && (
             <div className='p-6'>
               <p className='text-sm text-red-500 mb-3'>{chapterError}</p>
@@ -196,7 +228,6 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
               </button>
             </div>
           )}
-
           {chapterData && !chapterLoading && (
             <div className='p-6 md:p-8'>
               <h2 className='font-semibold text-zinc-900 text-lg mb-6 pb-4 border-b border-stone-100'>
@@ -205,18 +236,14 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
                   {TRANSLATIONS.find(t => t.id === translation)?.name ?? translation.toUpperCase()}
                 </span>
               </h2>
-
-              <div className={`${fontSizeClass} leading-8 text-zinc-700 space-y-0`}>
+              <div className={`${fontSizeClass} leading-8 text-zinc-700`}>
                 {chapterData.verses.map(v => (
                   <span key={v.verse} className='inline'>
-                    <sup className='text-amber-600 font-semibold text-[10px] mr-0.5 select-none'>
-                      {v.verse}
-                    </sup>
+                    <sup className='text-amber-600 font-semibold text-[10px] mr-0.5 select-none'>{v.verse}</sup>
                     {v.text.replace(/\n/g, ' ')}{' '}
                   </span>
                 ))}
               </div>
-
               <p className='mt-8 text-xs text-zinc-400 border-t border-stone-100 pt-4'>
                 {chapterData.reference} · {TRANSLATIONS.find(t => t.id === translation)?.name}
               </p>
@@ -225,23 +252,21 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
         </div>
 
         {/* Bottom nav */}
-        <div className='flex items-center justify-between gap-3'>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
           <div className='flex items-center gap-2'>
             <button
               onClick={navPrev}
               disabled={activeChapterIdx <= 0}
               className='flex items-center gap-1.5 px-3 py-2 border border-stone-200 rounded-lg text-sm text-zinc-500 hover:text-zinc-900 hover:border-stone-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all'
             >
-              <CaretLeft size={14} />
-              Prev
+              <CaretLeft size={14} /> Prev
             </button>
             <button
               onClick={navNext}
               disabled={activeChapterIdx >= chapters.length - 1}
               className='flex items-center gap-1.5 px-3 py-2 border border-stone-200 rounded-lg text-sm text-zinc-500 hover:text-zinc-900 hover:border-stone-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all'
             >
-              Next
-              <CaretRight size={14} />
+              Next <CaretRight size={14} />
             </button>
           </div>
 
@@ -263,20 +288,29 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
     )
   }
 
-  // ── Chapter List View ────────────────────────────────────────────────────────
+  // ── Chapter List ────────────────────────────────────────────────────────────
   return (
     <div className='space-y-6'>
-      {/* Overview */}
       <div className='bg-white border border-stone-200 rounded-2xl p-6'>
         <div className='flex items-start justify-between mb-4'>
           <div>
             <h2 className='font-semibold text-zinc-900 text-lg mb-1'>This Week&apos;s Reading</h2>
             <p className='text-sm text-zinc-500'>
-              {chapters.length} chapters · click any to read inline
+              {chapters.length} chapters · read inline or open the Bible view
             </p>
           </div>
-          <div className='w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center shrink-0'>
-            <Books size={20} className='text-amber-700' />
+          <div className='flex items-center gap-2'>
+            {/* Open full Bible book view */}
+            <button
+              onClick={() => openBookAt(0)}
+              className='flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 active:scale-[0.98] transition-all'
+            >
+              <BookBookmark size={14} />
+              <span className='hidden sm:inline'>Open</span> Bible View
+            </button>
+            <div className='w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center shrink-0'>
+              <Books size={20} className='text-amber-700' />
+            </div>
           </div>
         </div>
 
@@ -305,32 +339,38 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
                   ${isRead ? 'bg-emerald-50 border-emerald-100' : 'bg-stone-50 border-stone-200 hover:border-stone-300'}`}
               >
                 {/* Checkbox */}
-                <button
-                  onClick={() => markChapterRead(i)}
-                  className='p-3 shrink-0'
-                  title={isRead ? 'Mark unread' : 'Mark as read'}
-                >
+                <button onClick={() => markChapterRead(i)} className='p-3 shrink-0' title={isRead ? 'Mark unread' : 'Mark as read'}>
                   {isRead
                     ? <CheckCircle size={18} weight='fill' className='text-emerald-500' />
                     : <Circle size={18} className='text-zinc-300 hover:text-zinc-500 transition-colors' />
                   }
                 </button>
 
-                {/* Chapter name — click to read */}
+                {/* Chapter name */}
                 <button
                   onClick={() => openChapter(i)}
-                  className={`flex-1 py-3 pr-3 text-left text-sm font-medium transition-colors
+                  className={`flex-1 py-3 text-left text-sm font-medium transition-colors
                     ${isRead ? 'text-emerald-700' : 'text-zinc-700 hover:text-amber-700'}`}
                 >
                   {ch}
                 </button>
 
-                {/* Read button */}
+                {/* Read (inline) */}
                 <button
                   onClick={() => openChapter(i)}
-                  className='px-3 py-3 text-xs text-zinc-400 hover:text-amber-600 transition-colors flex items-center gap-1 shrink-0'
+                  className='px-2 py-3 text-xs text-zinc-400 hover:text-amber-600 transition-colors flex items-center gap-1 shrink-0'
+                  title='Read inline'
                 >
-                  Read <BookOpen size={13} />
+                  <BookOpen size={13} />
+                </button>
+
+                {/* Bible View */}
+                <button
+                  onClick={() => openBookAt(i)}
+                  className='px-2 py-3 text-xs text-zinc-400 hover:text-amber-600 transition-colors flex items-center gap-1 shrink-0 border-l border-stone-200'
+                  title='Open Bible view'
+                >
+                  <BookBookmark size={13} />
                 </button>
               </div>
             )
@@ -345,22 +385,17 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
           As you read, look for...
         </h3>
         <ul className='space-y-2 text-sm text-amber-800'>
-          <li className='flex items-start gap-2'>
-            <span className='font-bold text-amber-700 shrink-0 mt-0.5'>H</span>
-            <span>A verse that <strong>highlights</strong> something about God&apos;s character or a command that stands out</span>
-          </li>
-          <li className='flex items-start gap-2'>
-            <span className='font-bold text-amber-700 shrink-0 mt-0.5'>E</span>
-            <span>Context that helps you <strong>explain</strong> what the author intended</span>
-          </li>
-          <li className='flex items-start gap-2'>
-            <span className='font-bold text-amber-700 shrink-0 mt-0.5'>A</span>
-            <span>A truth you can <strong>apply</strong> to your life this week</span>
-          </li>
-          <li className='flex items-start gap-2'>
-            <span className='font-bold text-amber-700 shrink-0 mt-0.5'>R</span>
-            <span>Something to bring to God in prayer as a <strong>response</strong></span>
-          </li>
+          {[
+            ['H', 'Highlight', "A verse that highlights something about God's character or a command that stands out"],
+            ['E', 'Explain', 'Context that helps you explain what the author intended'],
+            ['A', 'Apply', 'A truth you can apply to your life this week'],
+            ['R', 'Respond', 'Something to bring to God in prayer as a response'],
+          ].map(([letter, word, desc]) => (
+            <li key={letter} className='flex items-start gap-2'>
+              <span className='font-bold text-amber-700 shrink-0 mt-0.5'>{letter}</span>
+              <span>A verse that <strong>{word.toLowerCase()}s</strong> — {desc}</span>
+            </li>
+          ))}
         </ul>
       </div>
 

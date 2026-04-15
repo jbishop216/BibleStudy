@@ -99,18 +99,29 @@ export const SCHEDULE: WeekEntry[] = RAW.map(([label, chaptersStr, memoryRef], i
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Returns the current week based on today's date */
+/** Returns the current week based on today's date.
+ *
+ *  The date in the schedule marks when you START STUDYING FOR THE NEXT WEEK.
+ *  So the "current" active week is always one behind the last date that has
+ *  passed. Example: April 14 triggers week-16 study, meaning week 15 is the
+ *  current/active meeting week.
+ */
 export function getCurrentWeek(): WeekEntry {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  let current = SCHEDULE[0]
-  for (const week of SCHEDULE) {
-    const weekStart = new Date(week.date)
+
+  let foundIdx = 0
+  for (let i = 0; i < SCHEDULE.length; i++) {
+    const weekStart = new Date(SCHEDULE[i].date)
     weekStart.setHours(0, 0, 0, 0)
-    if (today >= weekStart) current = week
+    if (today >= weekStart) foundIdx = i
     else break
   }
-  return current
+
+  // One week back — the date that just passed marks the start of NEXT week's
+  // study, so the current meeting week is the previous entry.
+  const currentIdx = Math.max(0, foundIdx - 1)
+  return SCHEDULE[currentIdx]
 }
 
 /** True if today is Tuesday (day before Wednesday meeting) */
