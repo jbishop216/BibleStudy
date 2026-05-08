@@ -1,13 +1,15 @@
 import Link from 'next/link'
-import { BookOpen, Brain, ArrowRight, Clock } from '@phosphor-icons/react/dist/ssr'
-import { SCHEDULE, getCurrentWeek, isMeetingToday, isMeetingTomorrow } from '@/lib/schedule'
+import { BookOpen, Brain, ArrowRight } from '@phosphor-icons/react/dist/ssr'
+import { SCHEDULE, getCurrentWeek } from '@/lib/schedule'
 import WeekListClient from '@/components/WeekListClient'
+import UserGreeting from '@/components/UserGreeting'
+import HeaderStatus from '@/components/HeaderStatus'
+
+// Always server-render so getCurrentWeek() sees today's real date
+export const dynamic = 'force-dynamic'
 
 export default function HomePage() {
   const current = getCurrentWeek()
-  const today = new Date()
-  const meetingToday = isMeetingToday()
-  const meetingTomorrow = isMeetingTomorrow()
 
   return (
     <div className='min-h-[100dvh] flex flex-col'>
@@ -21,20 +23,15 @@ export default function HomePage() {
             <span className='font-semibold text-zinc-900 tracking-tight'>Scripture Study</span>
           </div>
           <div className='flex items-center gap-3'>
-            {(meetingToday || meetingTomorrow) && (
-              <span className='hidden sm:flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full'>
-                <Clock size={12} weight='fill' />
-                {meetingToday ? 'Meeting tonight' : 'Meeting tomorrow'}
-              </span>
-            )}
-            <span className='text-xs text-zinc-400'>
-              {today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </span>
+            <HeaderStatus />
           </div>
         </div>
       </header>
 
       <main className='flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 md:py-12'>
+        {/* ── Greeting ── */}
+        <UserGreeting />
+
         {/* ── Hero: Current Week ── */}
         <div className='mb-10'>
           <p className='text-xs font-medium text-amber-700 uppercase tracking-widest mb-2'>

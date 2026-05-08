@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   CheckCircle, Circle, BookOpen, ArrowRight, Books,
   CaretLeft, CaretRight, X, ArrowCounterClockwise, BookBookmark,
 } from '@phosphor-icons/react'
-import { fetchChapter, type BibleResponse, type Translation, TRANSLATIONS } from '@/lib/bible'
+import { fetchChapter, type BibleResponse, type Translation, TRANSLATIONS, DEFAULT_TRANSLATION } from '@/lib/bible'
 import { updateWeekProgress, getWeekProgress, getTranslation, saveTranslation } from '@/lib/storage'
-
-// Lazy-load the heavy BibleBook overlay
-const BibleBook = lazy(() => import('./BibleBook'))
+import BibleBook from './BibleBook'
 
 interface Props {
   weekId: number
@@ -27,7 +25,7 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
   const [chapterData, setChapterData] = useState<BibleResponse | null>(null)
   const [chapterLoading, setChapterLoading] = useState(false)
   const [chapterError, setChapterError] = useState('')
-  const [translation, setTranslation] = useState<Translation>('web')
+  const [translation, setTranslation] = useState<Translation>(DEFAULT_TRANSLATION)
   const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>('base')
 
   // Bible Book overlay state
@@ -108,26 +106,21 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
   const progress = chapters.length > 0 ? checked.size / chapters.length : 0
   const fontSizeClass = { sm: 'text-sm', base: 'text-base', lg: 'text-lg' }[fontSize]
 
-  // ── Bible Book Overlay ──────────────────────────────────────────────────────
-  if (bookOpen) {
-    return (
-      <Suspense fallback={null}>
-        <BibleBook
-          chapters={chapters}
-          initialIdx={bookStartIdx}
-          translation={translation}
-          onClose={() => setBookOpen(false)}
-        />
-      </Suspense>
-    )
-  }
-
   // ── Inline Chapter Reader ───────────────────────────────────────────────────
   if (activeChapterIdx !== null) {
     const chRef = chapters[activeChapterIdx]
     const isRead = checked.has(activeChapterIdx)
 
     return (
+      <>
+        {bookOpen && (
+          <BibleBook
+            chapters={chapters}
+            initialIdx={bookStartIdx}
+            translation={translation}
+            onClose={() => setBookOpen(false)}
+          />
+        )}
       <div className='space-y-4'>
         {/* Reader toolbar */}
         <div className='flex items-center justify-between gap-3 flex-wrap'>
@@ -175,7 +168,7 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
               className='text-xs border border-stone-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-amber-400 bg-white text-zinc-600'
             >
               {TRANSLATIONS.map(t => (
-                <option key={t.id} value={t.id}>{t.id.toUpperCase()}</option>
+                <option key={t.id} value={t.id}>{t.shortName}</option>
               ))}
             </select>
 
@@ -285,11 +278,21 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
           </button>
         </div>
       </div>
+      </>
     )
   }
 
   // ── Chapter List ────────────────────────────────────────────────────────────
   return (
+    <>
+      {bookOpen && (
+        <BibleBook
+          chapters={chapters}
+          initialIdx={bookStartIdx}
+          translation={translation}
+          onClose={() => setBookOpen(false)}
+        />
+      )}
     <div className='space-y-6'>
       <div className='bg-white border border-stone-200 rounded-2xl p-6'>
         <div className='flex items-start justify-between mb-4'>
@@ -424,5 +427,6 @@ export default function ReadingSection({ weekId, reading, chapters, onSwitchToHE
         </button>
       </div>
     </div>
+    </>
   )
 }

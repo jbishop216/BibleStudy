@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { CheckCircle, MagnifyingGlass, ArrowRight, Printer, Quotes, X } from '@phosphor-icons/react'
-import { fetchVerse, type Translation } from '@/lib/bible'
+import { fetchVerse, type Translation, DEFAULT_TRANSLATION } from '@/lib/bible'
 import { getHEAR, saveHEAR, isHEARComplete, updateWeekProgress } from '@/lib/storage'
 import type { HEAREntry } from '@/lib/storage'
 import { TRANSLATIONS } from '@/lib/bible'
@@ -49,7 +49,7 @@ export default function HEARJournal({ weekId, reading }: Props) {
   const [verseText, setVerseText] = useState('')
   const [verseFetching, setVerseFetching] = useState(false)
   const [verseError, setVerseError] = useState('')
-  const [translation, setTranslation] = useState<Translation>('web')
+  const [translation, setTranslation] = useState<Translation>(DEFAULT_TRANSLATION)
   const [entry, setEntry] = useState<Partial<HEAREntry>>({})
   const [saved, setSaved] = useState(false)
   const [alreadyComplete, setAlreadyComplete] = useState(false)
@@ -227,7 +227,7 @@ export default function HEARJournal({ weekId, reading }: Props) {
               className='px-3 py-2.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:border-amber-400 bg-white text-zinc-600'
             >
               {TRANSLATIONS.map(t => (
-                <option key={t.id} value={t.id}>{t.id.toUpperCase()}</option>
+                <option key={t.id} value={t.id}>{t.shortName}</option>
               ))}
             </select>
             <button

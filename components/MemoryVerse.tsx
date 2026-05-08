@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { CheckCircle, ArrowRight, ArrowCounterClockwise, Eye, EyeSlash } from '@phosphor-icons/react'
-import { fetchVerse, splitIntoWords, getBlankIndices, firstLetter, type Translation } from '@/lib/bible'
+import { fetchVerse, splitIntoWords, getBlankIndices, firstLetter, type Translation, DEFAULT_TRANSLATION } from '@/lib/bible'
 import { getMemoryProgress, saveMemoryProgress, updateWeekProgress, getTranslation, saveTranslation } from '@/lib/storage'
 import { TRANSLATIONS } from '@/lib/bible'
 
@@ -28,7 +28,7 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [verseText, setVerseText] = useState('')
-  const [translation, setTranslation] = useState<Translation>('web')
+  const [translation, setTranslation] = useState<Translation>(DEFAULT_TRANSLATION)
   const [blanks, setBlanks] = useState<Set<number>>(new Set())
   const [revealed, setRevealed] = useState<Set<number>>(new Set())
   const [writeInput, setWriteInput] = useState('')

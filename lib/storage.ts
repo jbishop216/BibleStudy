@@ -8,17 +8,17 @@ export interface HEAREntry {
   weekId: number
   verseRef: string
   verseText: string
-  highlight: string   // H – which verse stood out
-  explain: string     // E – what does it mean
-  apply: string       // A – how to apply it
-  respond: string     // R – prayer response
+  highlight: string
+  explain: string
+  apply: string
+  respond: string
   completedAt: string | null
   updatedAt: string
 }
 
 export interface MemoryProgress {
   weekId: number
-  stagesCompleted: number[]   // [1, 2, 3] means stages 1-3 done
+  stagesCompleted: number[]
   practiceCount: number
   lastPracticed: string | null
   translation: string
@@ -32,13 +32,8 @@ export interface WeekProgress {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Keys
+// localStorage helpers
 // ──────────────────────────────────────────────────────────────────────────────
-const HEAR_KEY = (id: number) => `hear_${id}`
-const MEMORY_KEY = (id: number) => `memory_${id}`
-const PROGRESS_KEY = (id: number) => `progress_${id}`
-const TRANSLATION_KEY = 'preferred_translation'
-const STREAK_KEY = 'study_streak'
 
 function safeGet<T>(key: string): T | null {
   if (typeof window === 'undefined') return null
@@ -60,8 +55,84 @@ function safeSet(key: string, value: unknown): void {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// User management (global — not namespaced)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const CURRENT_USER_KEY = 'scripture_user'
+const USERS_KEY = 'scripture_users'
+
+export function normalizeUsername(raw: string): string {
+  return raw.trim().split(/\s+/)[0].toLowerCase()
+}
+
+export function displayName(username: string): string {
+  return username.charAt(0).toUpperCase() + username.slice(1)
+}
+
+export function getCurrentUser(): string {
+  return safeGet<string>(CURRENT_USER_KEY) ?? 'jess'
+}
+
+export function setCurrentUser(name: string): void {
+  safeSet(CURRENT_USER_KEY, normalizeUsername(name))
+}
+
+export function getUsers(): string[] {
+  const stored = safeGet<string[]>(USERS_KEY)
+  if (!stored || !stored.includes('jess')) {
+    const list = stored ? [...new Set(['jess', ...stored])] : ['jess']
+    safeSet(USERS_KEY, list)
+    return list
+  }
+  return stored
+}
+
+/** Adds user if not exists. Returns normalized name. */
+export function addUser(rawName: string): string {
+  const name = normalizeUsername(rawName)
+  const existing = getUsers()
+  if (!existing.includes(name)) {
+    safeSet(USERS_KEY, [...existing, name])
+  }
+  return name
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Per-user key namespace
+// ──────────────────────────────────────────────────────────────────────────────
+
+function userKey(suffix: string): string {
+  if (typeof window === 'undefined') return `jess:${suffix}`
+  const user = localStorage.getItem(CURRENT_USER_KEY) ?? 'jess'
+  return `${user}:${suffix}`
+}
+
+const HEAR_KEY    = (id: number) => userKey(`hear_${id}`)
+const MEMORY_KEY  = (id: number) => userKey(`memory_${id}`)
+const PROGRESS_KEY = (id: number) => userKey(`progress_${id}`)
+const translationKey = () => userKey('translation')
+const streakKey      = () => userKey('streak')
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Owner initialisation — marks all weeks complete for jess (runs once)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function initializeOwnerProgress(currentWeekId: number): void {
+  const initKey = 'jess_v1_initialized'
+  if (safeGet<boolean>(initKey)) return
+  for (let i = 1; i <= currentWeekId; i++) {
+    const key = `jess:progress_${i}`
+    if (!safeGet(key)) {
+      safeSet(key, { weekId: i, readingComplete: true, hearComplete: true, memoryComplete: true })
+    }
+  }
+  safeSet(initKey, true)
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // HEAR
 // ──────────────────────────────────────────────────────────────────────────────
+
 export function getHEAR(weekId: number): HEAREntry | null {
   return safeGet<HEAREntry>(HEAR_KEY(weekId))
 }
@@ -99,6 +170,7 @@ export function isHEARComplete(weekId: number): boolean {
 // ──────────────────────────────────────────────────────────────────────────────
 // Memory Verse
 // ──────────────────────────────────────────────────────────────────────────────
+
 export function getMemoryProgress(weekId: number): MemoryProgress | null {
   return safeGet<MemoryProgress>(MEMORY_KEY(weekId))
 }
@@ -109,7 +181,7 @@ export function saveMemoryProgress(weekId: number, stageCompleted: number): void
     stagesCompleted: [],
     practiceCount: 0,
     lastPracticed: null,
-    translation: 'web',
+    translation: 'bba9f40183526463-01',
   }
   const stages = new Set(existing.stagesCompleted)
   stages.add(stageCompleted)
@@ -130,6 +202,7 @@ export function isMemoryComplete(weekId: number): boolean {
 // ──────────────────────────────────────────────────────────────────────────────
 // Week Progress
 // ──────────────────────────────────────────────────────────────────────────────
+
 export function getWeekProgress(weekId: number): WeekProgress {
   return (
     safeGet<WeekProgress>(PROGRESS_KEY(weekId)) ?? {
@@ -147,43 +220,43 @@ export function updateWeekProgress(weekId: number, patch: Partial<WeekProgress>)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Translation preference
+// Translation preference (per-user)
 // ──────────────────────────────────────────────────────────────────────────────
+
+const BSB_ID = 'bba9f40183526463-01'
+const VALID_BIBLE_IDS = new Set([BSB_ID])
+
 export function getTranslation(): string {
-  return safeGet<string>(TRANSLATION_KEY) ?? 'web'
+  const stored = safeGet<string>(translationKey())
+  return stored && VALID_BIBLE_IDS.has(stored) ? stored : BSB_ID
 }
 
 export function saveTranslation(t: string): void {
-  safeSet(TRANSLATION_KEY, t)
+  safeSet(translationKey(), t)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Streak
+// Streak (per-user)
 // ──────────────────────────────────────────────────────────────────────────────
-interface StreakData {
-  count: number
-  lastWeek: number
-}
+
+interface StreakData { count: number; lastWeek: number }
 
 export function getStreak(): StreakData {
-  return safeGet<StreakData>(STREAK_KEY) ?? { count: 0, lastWeek: 0 }
+  return safeGet<StreakData>(streakKey()) ?? { count: 0, lastWeek: 0 }
 }
 
 export function updateStreak(completedWeekId: number): void {
   const { count, lastWeek } = getStreak()
   const newCount = completedWeekId === lastWeek + 1 ? count + 1 : 1
-  safeSet(STREAK_KEY, { count: newCount, lastWeek: completedWeekId })
+  safeSet(streakKey(), { count: newCount, lastWeek: completedWeekId })
 }
 
-/** Returns all week IDs that have full progress (reading + hear + memory) */
 export function getCompletedWeeks(): number[] {
   if (typeof window === 'undefined') return []
   const completed: number[] = []
-  for (let i = 1; i <= 51; i++) {
+  for (let i = 1; i <= 52; i++) {
     const p = getWeekProgress(i)
-    if (p.readingComplete && p.hearComplete && p.memoryComplete) {
-      completed.push(i)
-    }
+    if (p.readingComplete && p.hearComplete && p.memoryComplete) completed.push(i)
   }
   return completed
 }

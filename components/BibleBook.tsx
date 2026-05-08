@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { X, CaretLeft, CaretRight } from '@phosphor-icons/react'
-import { fetchChapter, type BibleResponse, type BibleVerse, type Translation } from '@/lib/bible'
+import { fetchChapter, type BibleResponse, type BibleVerse, type Translation, TRANSLATIONS } from '@/lib/bible'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,19 +150,18 @@ export default function BibleBook({ chapters, initialIdx, translation, onClose }
         className='absolute top-5 left-5 text-[10px] uppercase tracking-widest'
         style={{ color: 'rgba(180,130,50,0.5)', zIndex: 10000 }}
       >
-        {translation}
+        {TRANSLATIONS.find(t => t.id === translation)?.shortName ?? 'BSB'}
       </div>
 
       {/* ── Main book layout ── */}
-      <div className='w-full px-2 sm:px-4 md:px-6 flex flex-col items-center gap-3'
-        style={{ maxWidth: '1100px', perspective: '2000px' }}
+      <div className='w-full px-1 sm:px-2 flex flex-col items-center gap-2'
+        style={{ maxWidth: '1400px', perspective: '2000px' }}
       >
         {/* The Book — explicit height so h-full works inside pages */}
         <div
           className='relative w-full flex items-stretch'
           style={{
-            height: 'min(78dvh, 660px)',
-            // Drop shadow beneath the book
+            height: 'min(92dvh, 820px)',
             filter: 'drop-shadow(0 24px 40px rgba(0,0,0,0.8))',
           }}
         >
@@ -307,7 +306,7 @@ function ChapterPage({ data, pageNum, totalPages }: {
           color: '#7a5c2e',
           marginBottom: '6px',
         }}>
-          {data.verses[0]?.book_name}
+          {data.bookName}
         </p>
         <h2 style={{
           fontFamily: "'UnifrakturMaguntia', cursive",
@@ -360,7 +359,7 @@ function ChapterPage({ data, pageNum, totalPages }: {
         <RuleDivider />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
           <span style={{ fontFamily: "'IM Fell English', serif", fontSize: '0.62rem', fontStyle: 'italic', color: '#8b6a3a' }}>
-            {data.verses[0]?.book_name}
+            {data.bookName}
           </span>
           <span style={{ fontFamily: "'Cinzel Decorative', serif", fontSize: '0.6rem', color: '#8b6a3a', letterSpacing: '0.05em' }}>
             {toRoman(pageNum)}
