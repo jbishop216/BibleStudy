@@ -181,7 +181,7 @@ export function saveMemoryProgress(weekId: number, stageCompleted: number): void
     stagesCompleted: [],
     practiceCount: 0,
     lastPracticed: null,
-    translation: 'bba9f40183526463-01',
+    translation: 'web',
   }
   const stages = new Set(existing.stagesCompleted)
   stages.add(stageCompleted)
@@ -223,12 +223,11 @@ export function updateWeekProgress(weekId: number, patch: Partial<WeekProgress>)
 // Translation preference (per-user)
 // ──────────────────────────────────────────────────────────────────────────────
 
-const BSB_ID = 'bba9f40183526463-01'
-const VALID_BIBLE_IDS = new Set([BSB_ID])
+const VALID_TRANSLATIONS = new Set(['web', 'kjv', 'asv', 'bbe', 'webbe'])
 
 export function getTranslation(): string {
   const stored = safeGet<string>(translationKey())
-  return stored && VALID_BIBLE_IDS.has(stored) ? stored : BSB_ID
+  return stored && VALID_TRANSLATIONS.has(stored) ? stored : 'web'
 }
 
 export function saveTranslation(t: string): void {
