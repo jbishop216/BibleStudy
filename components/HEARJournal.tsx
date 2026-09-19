@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { CheckCircle, MagnifyingGlass, ArrowRight, Printer, Quotes, X } from '@phosphor-icons/react'
 import { fetchVerse, type Translation, DEFAULT_TRANSLATION } from '@/lib/bible'
 import { getHEAR, saveHEAR, isHEARComplete, updateWeekProgress } from '@/lib/storage'
@@ -86,12 +86,32 @@ export default function HEARJournal({ weekId, reading }: Props) {
     }
   }, [verseRef, translation, weekId])
 
+  // Persist on a debounce: a synchronous localStorage write per keystroke makes typing lag on iPad
+  const pendingRef = useRef<(Partial<HEAREntry> & { weekId: number }) | null>(null)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flushSave = useCallback(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = null
+    if (pendingRef.current) {
+      saveHEAR(pendingRef.current)
+      pendingRef.current = null
+      setSaved(true)
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setSaved(false), 1500)
+    }
+  }, [])
+
+  // Flush any unsaved text when changing step or leaving the page
+  useEffect(() => flushSave, [step, flushSave])
+
   function updateField(field: keyof HEAREntry, value: string) {
     const updated = { ...entry, [field]: value, weekId }
     setEntry(updated)
-    saveHEAR(updated as Partial<HEAREntry> & { weekId: number })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
+    pendingRef.current = updated as Partial<HEAREntry> & { weekId: number }
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(flushSave, 600)
   }
 
   function advance() {
@@ -329,13 +349,11 @@ export default function HEARJournal({ weekId, reading }: Props) {
           onChange={e => updateField(currentField, e.target.value)}
           placeholder={currentStepInfo.placeholder}
           rows={6}
-          className='w-full px-3 py-3 text-sm border border-stone-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all text-zinc-700 placeholder:text-zinc-300 leading-relaxed'
+          className='w-full px-3 py-3 text-sm border border-stone-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 text-zinc-700 placeholder:text-zinc-300 leading-relaxed'
         />
-        {saved && (
-          <p className='text-xs text-emerald-500 mt-1.5 flex items-center gap-1'>
-            <CheckCircle size={12} weight='fill' /> Saved
-          </p>
-        )}
+        <p className={`text-xs text-emerald-500 mt-1.5 flex items-center gap-1 h-4 ${saved ? '' : 'invisible'}`}>
+          <CheckCircle size={12} weight='fill' /> Saved
+        </p>
       </div>
 
       {/* Actions */}

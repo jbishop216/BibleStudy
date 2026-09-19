@@ -9,7 +9,7 @@ import MemoryVerse from './MemoryVerse'
 interface Props {
   weekId: number
   reading: string
-  memoryRef: string
+  memoryOptions: string[]
   memoryDisplay: string
   chapters: string[]
   defaultTab: string
@@ -23,7 +23,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; short: string }[]
   { id: 'memory', label: 'Memory Verse', icon: Brain, short: 'Memory' },
 ]
 
-export default function WeekTabs({ weekId, reading, memoryRef, memoryDisplay, chapters, defaultTab }: Props) {
+export default function WeekTabs({ weekId, reading, memoryOptions, memoryDisplay, chapters, defaultTab }: Props) {
   const validTabs: Tab[] = ['reading', 'hear', 'memory']
   const initial: Tab = validTabs.includes(defaultTab as Tab) ? (defaultTab as Tab) : 'reading'
   const [active, setActive] = useState<Tab>(initial)
@@ -67,7 +67,7 @@ export default function WeekTabs({ weekId, reading, memoryRef, memoryDisplay, ch
           <HEARJournal weekId={weekId} reading={reading} />
         )}
         {active === 'memory' && (
-          <MemoryVerse weekId={weekId} memoryRef={memoryRef} memoryDisplay={memoryDisplay} />
+          <MemoryVerse weekId={weekId} memoryOptions={memoryOptions} memoryDisplay={memoryDisplay} />
         )}
       </div>
     </div>

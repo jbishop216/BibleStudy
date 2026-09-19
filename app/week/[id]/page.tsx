@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { BookOpen, ArrowLeft } from '@phosphor-icons/react/dist/ssr'
 import { SCHEDULE } from '@/lib/schedule'
 import WeekTabs from '@/components/WeekTabs'
@@ -45,7 +46,7 @@ export default async function WeekPage({ params, searchParams }: Props) {
   return (
     <div className='min-h-[100dvh] flex flex-col bg-[#f9f7f4]'>
       {/* ── Header ── */}
-      <header className='border-b border-stone-200 bg-[#f9f7f4]/80 backdrop-blur-sm sticky top-0 z-10'>
+      <header className='border-b border-stone-200 bg-[#f9f7f4] sticky top-0 z-10'>
         <div className='max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between'>
           <div className='flex items-center gap-3'>
             <Link
@@ -84,17 +85,31 @@ export default async function WeekPage({ params, searchParams }: Props) {
       </header>
 
       {/* ── Week Hero ── */}
-      <div className='max-w-4xl mx-auto w-full px-4 sm:px-6 pt-8 pb-6'>
-        <p className='text-xs font-medium text-amber-700 uppercase tracking-widest mb-1'>
-          Week {week.id} · {week.label}
-        </p>
-        <h1 className='text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900 mb-0.5'>
-          {shortReading}
-        </h1>
-        <p className='text-zinc-500 text-sm'>
-          Memory verse:{' '}
-          <span className='text-zinc-700 font-medium'>{week.memoryDisplay}</span>
-        </p>
+      <div className='max-w-4xl mx-auto w-full px-4 sm:px-6 pt-6 pb-6'>
+        <section className='relative overflow-hidden rounded-2xl border border-stone-900/10 bg-stone-900 shadow-[0_18px_48px_-34px_rgba(28,25,23,0.85)]'>
+          <Image
+            src='/hero-scripture-pages.png'
+            alt=''
+            fill
+            preload
+            sizes='(max-width: 896px) calc(100vw - 2rem), 896px'
+            className='object-cover'
+          />
+          <div className='absolute inset-0 bg-[linear-gradient(90deg,rgba(28,25,23,0.86)_0%,rgba(28,25,23,0.62)_48%,rgba(28,25,23,0.08)_100%)]' />
+          <div className='absolute inset-0 bg-[linear-gradient(0deg,rgba(28,25,23,0.5)_0%,rgba(28,25,23,0)_58%)]' />
+          <div className='relative flex min-h-[220px] flex-col justify-end p-5 text-white sm:min-h-[250px] sm:p-7'>
+            <p className='mb-2 text-xs font-semibold uppercase tracking-widest text-amber-200'>
+              Week {week.id} · {week.label}
+            </p>
+            <h1 className='max-w-2xl text-2xl font-semibold leading-tight tracking-tight text-white md:text-3xl'>
+              {shortReading}
+            </h1>
+            <p className='mt-2 text-sm leading-6 text-stone-200'>
+              Memory verse:{' '}
+              <span className='font-medium text-amber-100'>{week.memoryDisplay}</span>
+            </p>
+          </div>
+        </section>
       </div>
 
       {/* ── Tabs + Content ── */}
@@ -102,7 +117,7 @@ export default async function WeekPage({ params, searchParams }: Props) {
         <WeekTabs
           weekId={week.id}
           reading={shortReading}
-          memoryRef={week.memoryRef}
+          memoryOptions={week.memoryOptions}
           memoryDisplay={week.memoryDisplay}
           chapters={week.chapters}
           defaultTab={tab ?? 'reading'}

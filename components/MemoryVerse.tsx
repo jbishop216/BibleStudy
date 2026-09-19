@@ -5,10 +5,11 @@ import { CheckCircle, ArrowRight, ArrowCounterClockwise, Eye, EyeSlash } from '@
 import { fetchVerse, splitIntoWords, getBlankIndices, firstLetter, type Translation, DEFAULT_TRANSLATION } from '@/lib/bible'
 import { getMemoryProgress, saveMemoryProgress, updateWeekProgress, getTranslation, saveTranslation } from '@/lib/storage'
 import { TRANSLATIONS } from '@/lib/bible'
+import { formatMemoryRef } from '@/lib/schedule'
 
 interface Props {
   weekId: number
-  memoryRef: string
+  memoryOptions: string[]
   memoryDisplay: string
 }
 
@@ -22,7 +23,10 @@ const STAGE_INFO: Record<number, { title: string; description: string }> = {
   4: { title: 'Write It Out', description: 'Type the verse from memory. Don\'t peek!' },
 }
 
-export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props) {
+export default function MemoryVerse({ weekId, memoryOptions, memoryDisplay }: Props) {
+  const [optionIdx, setOptionIdx] = useState(0)
+  const memoryRef = memoryOptions[optionIdx] ?? memoryOptions[0]
+  const verseLabel = formatMemoryRef(memoryRef)
   const [stage, setStage] = useState<Stage>(0)
   const [words, setWords] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -55,8 +59,9 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
     setLoading(true)
     setError('')
     try {
-      const data = await fetchVerse(ref, trans)
-      const text = data.text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+      // "A + B" = passages read together
+      const parts = await Promise.all(ref.split(' + ').map(r => fetchVerse(r.trim(), trans)))
+      const text = parts.map(d => d.text).join(' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
       setVerseText(text)
       const w = splitIntoWords(text)
       setWords(w)
@@ -81,6 +86,12 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
     setWords([])
     setVerseText('')
     if (stage >= 1) loadVerse(memoryRef, t)
+  }
+
+  function handleOptionChange(i: number) {
+    setOptionIdx(i)
+    setWords([])
+    setVerseText('')
   }
 
   function completeStage(s: Stage) {
@@ -151,6 +162,25 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
           </div>
         )}
 
+        {memoryOptions.length > 1 && (
+          <div>
+            <p className='text-xs text-zinc-500 mb-2'>Verse to practice:</p>
+            <div className='flex flex-wrap gap-2'>
+              {memoryOptions.map((opt, i) => (
+                <button
+                  key={opt}
+                  onClick={() => handleOptionChange(i)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm ${i === optionIdx
+                    ? 'bg-amber-700 border-amber-700 text-white'
+                    : 'bg-white border-stone-200 text-zinc-600 hover:border-amber-300'}`}
+                >
+                  {formatMemoryRef(opt)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Translation picker */}
         <div className='flex items-center gap-3'>
           <label className='text-xs text-zinc-500 shrink-0'>Translation:</label>
@@ -218,7 +248,7 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
             ))}
           </blockquote>
           <p className='mt-4 text-xs text-zinc-400 font-medium'>
-            — {memoryDisplay}
+            — {verseLabel}
           </p>
         </div>
 
@@ -269,7 +299,7 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
               return <span key={i}>{word} </span>
             })}
           </p>
-          <p className='mt-4 text-xs text-zinc-400 font-medium'>— {memoryDisplay}</p>
+          <p className='mt-4 text-xs text-zinc-400 font-medium'>— {verseLabel}</p>
         </div>
 
         <div className='bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-800'>
@@ -329,7 +359,7 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
               )
             })}
           </p>
-          <p className='mt-4 text-xs text-zinc-400 font-medium'>— {memoryDisplay}</p>
+          <p className='mt-4 text-xs text-zinc-400 font-medium'>— {verseLabel}</p>
         </div>
 
         <div className='bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-800 flex items-start gap-2'>
@@ -393,7 +423,7 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
 
         <div className='bg-white border border-stone-200 rounded-2xl p-6'>
           <label className='block text-sm font-medium text-zinc-700 mb-3'>
-            Write {memoryDisplay} from memory:
+            Write {verseLabel} from memory:
           </label>
           <textarea
             ref={writeRef}
@@ -402,7 +432,7 @@ export default function MemoryVerse({ weekId, memoryRef, memoryDisplay }: Props)
             placeholder='Begin typing the verse...'
             rows={5}
             disabled={writeChecked && isCorrect}
-            className='w-full px-3 py-3 text-sm border border-stone-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all text-zinc-700 placeholder:text-zinc-300 leading-relaxed font-light disabled:bg-stone-50 disabled:text-zinc-500'
+            className='w-full px-3 py-3 text-sm border border-stone-200 rounded-xl resize-none focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 text-zinc-700 placeholder:text-zinc-300 leading-relaxed font-light disabled:bg-stone-50 disabled:text-zinc-500'
           />
 
           <div className='flex gap-2 mt-3'>

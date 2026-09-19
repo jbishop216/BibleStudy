@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { BookOpen, Brain, ArrowRight } from '@phosphor-icons/react/dist/ssr'
 import { SCHEDULE, getCurrentWeek } from '@/lib/schedule'
 import WeekListClient from '@/components/WeekListClient'
@@ -14,7 +15,7 @@ export default function HomePage() {
   return (
     <div className='min-h-[100dvh] flex flex-col'>
       {/* ── Top Bar ── */}
-      <header className='border-b border-stone-200 bg-[#f9f7f4]/80 backdrop-blur-sm sticky top-0 z-10'>
+      <header className='border-b border-stone-200 bg-[#f9f7f4] sticky top-0 z-10'>
         <div className='max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between'>
           <div className='flex items-center gap-2.5'>
             <div className='w-7 h-7 bg-amber-700 rounded-lg flex items-center justify-center'>
@@ -34,16 +35,30 @@ export default function HomePage() {
 
         {/* ── Hero: Current Week ── */}
         <div className='mb-10'>
-          <p className='text-xs font-medium text-amber-700 uppercase tracking-widest mb-2'>
-            Week {current.id} — {current.label}
-          </p>
-          <h1 className='text-3xl md:text-4xl font-semibold tracking-tight text-zinc-900 mb-1'>
-            {current.reading}
-          </h1>
-          <p className='text-zinc-500 text-base mb-6'>
-            Memory verse:{' '}
-            <span className='text-zinc-700 font-medium'>{current.memoryDisplay}</span>
-          </p>
+          <section className='relative mb-5 overflow-hidden rounded-3xl border border-stone-900/10 bg-stone-900 shadow-[0_24px_60px_-36px_rgba(28,25,23,0.9)]'>
+            <Image
+              src='/hero-study-table.png'
+              alt=''
+              fill
+              preload
+              sizes='(max-width: 1024px) calc(100vw - 2rem), 1024px'
+              className='object-cover'
+            />
+            <div className='absolute inset-0 bg-[linear-gradient(90deg,rgba(28,25,23,0.88)_0%,rgba(28,25,23,0.7)_44%,rgba(28,25,23,0.18)_100%)]' />
+            <div className='absolute inset-0 bg-[linear-gradient(0deg,rgba(28,25,23,0.58)_0%,rgba(28,25,23,0)_50%)]' />
+            <div className='relative flex min-h-[360px] flex-col justify-end p-6 text-white sm:min-h-[390px] sm:p-8 md:min-h-[430px] md:p-10'>
+              <p className='mb-2 text-xs font-semibold uppercase tracking-widest text-amber-200'>
+                Week {current.id} — {current.label}
+              </p>
+              <h1 className='max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-white md:text-4xl'>
+                {current.reading}
+              </h1>
+              <p className='mt-3 max-w-2xl text-sm leading-6 text-stone-200 sm:text-base'>
+                Memory verse:{' '}
+                <span className='font-medium text-amber-100'>{current.memoryDisplay}</span>
+              </p>
+            </div>
+          </section>
 
           {/* CTA Cards */}
           <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
